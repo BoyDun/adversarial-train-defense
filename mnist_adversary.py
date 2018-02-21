@@ -4,6 +4,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import numpy as np
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
+import fast_gradient
 
 epochs = 120
 learning_rate = 0.01
@@ -77,14 +78,20 @@ saver = tf.train.Saver()
 # initialize graph
 init = tf.initialize_all_variables()
 
+# generating adversarial images
+fgm_eps = tf.placeholder(tf.float32, ())
+fgm_epochs = tf.placeholder(tf.float32, ())
+adv_examples = fast_gradient.fgmt(x_norm, final_norm, sm_norm, y=y_, eps=fgm_eps, epochs=fgm_epochs) 
+
 with tf.Session() as sess:
     sess.run(init)
 
     for i in range(epochs):
         for j in range(mnist.train.num_examples/batch_size):
             input_images, correct_predictions = mnist.train.next_batch(batch_size)
-            
-            adv_images = {}
+            final_logits = sess.run(final_norm, feed_dict={x_norm: input_images})
+            final_output = sess.run(sm_norm, feed_dict={x_norm: input_images})
+            adv_images = sess.run(adv_examples, feed_dict={x_norm: input_images, final_norm: final_logits, sm_norm: final_output, y_:correct_predictions, fgm_eps: 0.01, fgm_epochs: 1}) 
             #GENERATE ADVERSARIAL IMAGES
             if j == 0: 
                 train_accuracy = sess.run(accuracy, feed_dict={
