@@ -44,13 +44,20 @@ h_fc1_norm = tf.nn.leaky_relu(tf.matmul(x_norm, W_fc1) + b_fc1, alpha=0.1)
 h_fc2_norm = tf.nn.leaky_relu(tf.matmul(h_fc1_norm, W_fc2) + b_fc2, alpha=0.1)
 h_fc3_norm = tf.nn.leaky_relu(tf.matmul(h_fc2_norm, W_fc3) + b_fc3, alpha=0.1)
 final_norm = tf.matmul(h_fc3_norm, W_fc4) + b_fc4
+cross_norm = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_, logits=final_norm) 
 
 # Adversarial examples
 h_fc1_adv = tf.nn.leaky_relu(tf.matmul(x_adv, W_fc1) + b_fc1, alpha=0.1)
 h_fc2_adv = tf.nn.leaky_relu(tf.matmul(h_fc1_adv, W_fc2) + b_fc2, alpha=0.1)
 h_fc3_adv = tf.nn.leaky_relu(tf.matmul(h_fc2_adv, W_fc3) + b_fc3, alpha=0.1)
 final_adv = tf.matmul(h_fc3_adv, W_fc4) + b_fc4
+cross_adv = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_, logits=final_adv)
 
-loss = -alpha * tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_, logits=final_norm) - \
-       (1 - alpha) * tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_, logits=final_adv)
+loss = -alpha * cross_norm - (1 - alpha) * cross_adv
+
+# define training step and accuracy
+train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+
+
+with tf.Session() as sess:
 
