@@ -46,6 +46,9 @@ h_fc3_norm = tf.nn.leaky_relu(tf.matmul(h_fc2_norm, W_fc3) + b_fc3, alpha=0.1)
 final_norm = tf.matmul(h_fc3_norm, W_fc4) + b_fc4
 cross_norm = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_, logits=final_norm) 
 
+# For generating adversarial examples
+sm_norm = tf.nn.softmax(final_norm)
+
 # Adversarial examples
 h_fc1_adv = tf.nn.leaky_relu(tf.matmul(x_adv, W_fc1) + b_fc1, alpha=0.1)
 h_fc2_adv = tf.nn.leaky_relu(tf.matmul(h_fc1_adv, W_fc2) + b_fc2, alpha=0.1)
@@ -57,7 +60,17 @@ loss = -alpha * cross_norm - (1 - alpha) * cross_adv
 
 # define training step and accuracy
 train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+correct_prediction = tf.equal(tf.argmax(final_norm, 1), tf.argmax(y_, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+# create a saver
+saver = tf.train.Saver()
+
+# initialize graph
+init = tf.initialize_all_variables()
 
 with tf.Session() as sess:
+    sess.run(init)
+
+    
 
