@@ -85,6 +85,8 @@ def fgmt(x, logits, ybar, y=None, eps=0.01, epochs=1, sign=True, clip_min=0.,
 
     ydim = ybar.get_shape().as_list()[1]
     n = tf.shape(ybar)[0]
+    
+    y = tf.cast(y, tf.int32)
 
     if y is None:
         indices = tf.argmin(ybar, axis=1)
@@ -111,7 +113,8 @@ def fgmt(x, logits, ybar, y=None, eps=0.01, epochs=1, sign=True, clip_min=0.,
     eps = -tf.abs(eps)
 
     def _cond(xadv, i):
-        return tf.less(i, epochs)
+        e = tf.cast(epochs, tf.float32)
+        return tf.less(i, e)
 
     def _body(xadv, i):
         loss = loss_fn(labels=target, logits=logits)
