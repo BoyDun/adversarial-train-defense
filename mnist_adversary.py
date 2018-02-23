@@ -20,12 +20,12 @@ INPUT = 784
 OUTPUT = 10
 
 def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev=0.01)
-    return tf.Variable(initial)
+    initial = tf.truncated_normal(shape, dtype=tf.float64, stddev=0.01)
+    return tf.Variable(initial, dtype=tf.float64)
 
 def bias_variable(shape):
-    initial = tf.constant(0.0, shape=shape)
-    return tf.Variable(initial)
+    initial = tf.constant(0.0, dtype=tf.float64, shape=shape)
+    return tf.Variable(initial, dtype=tf.float64)
 
 mnist = input_data.read_data_sets('/data/mnist', one_hot=True)
 
