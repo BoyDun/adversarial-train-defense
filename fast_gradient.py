@@ -49,7 +49,8 @@ def fgm(x, logits, ybar, eps=0.01, epochs=1, sign=True, clip_min=0., clip_max=1.
     eps = tf.abs(eps)
 
     def _cond(xadv, i):
-        return tf.less(i, epochs)
+        #e = tf.cast(epochs, tf.float32)
+        return tf.less(i, e)
 
     def _body(xadv, i):
         loss = loss_fn(labels=target, logits=logits)
@@ -113,7 +114,7 @@ def fgmt(x, logits, ybar, y=None, eps=0.01, epochs=1, sign=True, clip_min=0.,
     eps = -tf.abs(eps)
 
     def _cond(xadv, i):
-        e = tf.cast(epochs, tf.float32)
+        e = tf.cast(epochs, tf.int32)
         return tf.less(i, e)
 
     def _body(xadv, i):
