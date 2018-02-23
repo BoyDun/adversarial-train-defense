@@ -85,8 +85,8 @@ correct_prediction = tf.equal(tf.argmax(final_norm, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 train_step_discr = tf.train.AdamOptimizer(learning_rate).minimize(discr_loss)
-correct_norm_discr = tf.equal(0, tf.argmax(cross_discr_norm,1))
-correct_adv_discr = tf.equal(1, tf.argmax(cross_discr_adv,1))
+correct_norm_discr = tf.equal(0, tf.argmax(cross_discr_norm,1, output_type = tf.int32))
+correct_adv_discr = tf.equal(1, tf.argmax(cross_discr_adv,1, output_type = tf.int32))
 norm_acc = tf.reduce_mean(tf.cast(correct_norm_discr, tf.float32))
 adv_acc = tf.reduce_mean(tf.cast(correct_adv_discr, tf.float32))
 comb_acc = (norm_acc + adv_acc) / 2
@@ -94,7 +94,7 @@ comb_acc = (norm_acc + adv_acc) / 2
 saver = tf.train.Saver()
 
 # initialize graph
-init = tf.initialize_all_variables()
+init = tf.global_variables_initializer()
 
 # generating adversarial images
 fgm_eps = tf.placeholder(tf.float32, ())
