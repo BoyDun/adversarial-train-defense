@@ -29,9 +29,9 @@ def bias_variable(shape):
 
 mnist = input_data.read_data_sets('/data/mnist', one_hot=True)
 
-y_ = tf.placeholder(tf.float32, [None, OUTPUT])
-x_norm = tf.placeholder(tf.float32, [None, INPUT])
-x_adv = tf.placeholder(tf.float32, [None, INPUT])
+y_ = tf.placeholder(tf.float64, [None, OUTPUT])
+x_norm = tf.placeholder(tf.float64, [None, INPUT])
+x_adv = tf.placeholder(tf.float64, [None, INPUT])
 
 W_fc1 = weight_variable([INPUT, LAYER_1])
 W_fc2 = weight_variable([LAYER_1, LAYER_2])
@@ -63,27 +63,32 @@ loss = -alpha * cross_norm - (1 - alpha) * cross_adv
 sm_norm = tf.nn.softmax(final_norm)
 
 # Discriminator
-W_d = weight_variable([LAYER_2, LAYER_3])
-b_d = bias_variable([LAYER_3])
-keep_prob_input = tf.placeholder(tf.float32)
+W_d1 = weight_variable([LAYER_2, LAYER_3])
+W_d2 = weight_variable([LAYER_3, 2])
+b_d1 = bias_variable([LAYER_3])
+b_d2 = bias_variable([2])
+keep_prob_input = tf.placeholder(tf.float64)
 drop_reg_discr = tf.nn.dropout(h_fc2_norm, keep_prob=keep_prob_input)
 drop_adv_discr = tf.nn.dropout(h_fc2_adv, keep_prob=keep_prob_input)
-final_discr_norm = tf.nn.relu(tf.matmul(drop_reg_discr, W_d) + b_d)
-final_discr_adv = tf.nn.relu(tf.matmul(drop_adv_discr, W_d) + b_d)
+discr_norm1 = tf.nn.relu(tf.matmul(drop_reg_discr, W_d1) + b_d1)
+discr_adv1 = tf.nn.relu(tf.matmul(drop_adv_discr, W_d1) + b_d1)
+final_discr_norm = tf.matmul(discr_norm1, W_d2) + b_d2
+final_discr_adv = tf.matmul(discr_adv1, W_d2) + b_d2
 cross_discr_norm = tf.nn.softmax_cross_entropy_with_logits(labels=np.asarray([1,0]), logits=final_discr_norm)
 cross_discr_adv = tf.nn.softmax_cross_entropy_with_logits(labels=np.asarray([0,1]), logits=final_discr_adv)
 discr_loss = - (cross_discr_norm + cross_discr_adv)
 
 # define training step and accuracy
+#print loss
 train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 correct_prediction = tf.equal(tf.argmax(final_norm, 1), tf.argmax(y_, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float64))
 
 train_step_discr = tf.train.AdamOptimizer(learning_rate).minimize(discr_loss)
 correct_norm_discr = tf.equal(0, tf.argmax(cross_discr_norm,1))
 correct_adv_discr = tf.equal(1, tf.argmax(cross_discr_adv,1))
-norm_acc = tf.reduce_mean(tf.cast(correct_norm_discr, tf.float32))
-adv_acc = tf.reduce_mean(tf.cast(correct_adv_discr, tf.float32))
+norm_acc = tf.reduce_mean(tf.cast(correct_norm_discr, tf.float64))
+adv_acc = tf.reduce_mean(tf.cast(correct_adv_discr, tf.float64))
 comb_acc = (norm_acc + adv_acc) / 2
 # create a saver
 saver = tf.train.Saver()
@@ -92,8 +97,8 @@ saver = tf.train.Saver()
 init = tf.initialize_all_variables()
 
 # generating adversarial images
-fgm_eps = tf.placeholder(tf.float32, ())
-fgm_epochs = tf.placeholder(tf.float32, ())
+fgm_eps = tf.placeholder(tf.float64, ())
+fgm_epochs = tf.placeholder(tf.float64, ())
 adv_examples = fast_gradient.fgmt(x_norm, final_norm, sm_norm, y=y_, eps=fgm_eps, epochs=fgm_epochs) 
 
 with tf.Session() as sess:
