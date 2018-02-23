@@ -99,7 +99,7 @@ init = tf.global_variables_initializer()
 # generating adversarial images
 fgm_eps = tf.placeholder(tf.float32, ())
 fgm_epochs = tf.placeholder(tf.float32, ())
-adv_examples = fast_gradient.fgmt(x_norm, final_norm, sm_norm, y=y_, eps=fgm_eps, epochs=fgm_epochs) 
+adv_examples = fast_gradient.fgm(x_norm, final_norm, sm_norm, eps=fgm_eps, epochs=fgm_epochs) 
 
 with tf.Session() as sess:
     sess.run(init)
@@ -109,7 +109,7 @@ with tf.Session() as sess:
             input_images, correct_predictions = mnist.train.next_batch(batch_size)
             final_logits = sess.run(final_norm, feed_dict={x_norm: input_images})
             final_output = sess.run(sm_norm, feed_dict={x_norm: input_images})
-            adv_images = sess.run(adv_examples, feed_dict={x_norm: input_images, final_norm: final_logits, sm_norm: final_output, y_:correct_predictions, fgm_eps: 0.01, fgm_epochs: 1}) 
+            adv_images = sess.run(adv_examples, feed_dict={x_norm: input_images, final_norm: final_logits, sm_norm: final_output, fgm_eps: 0.01, fgm_epochs: 1}) 
             #GENERATE ADVERSARIAL IMAGES
             if j == 0:
                 discr_accuracy = sess.run(comb_acc, feed_dict={keep_prob_input:1.0, x_norm:input_images, x_adv:adv_images, y_:correct_predictions})
