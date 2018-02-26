@@ -49,6 +49,8 @@ h_fc2_norm = tf.nn.relu(tf.matmul(h_fc1_norm, W_fc2) + b_fc2)
 h_fc3_norm = tf.nn.relu(tf.matmul(h_fc2_norm, W_fc3) + b_fc3)
 final_norm = tf.matmul(h_fc3_norm, W_fc4) + b_fc4
 cross_norm = tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=final_norm) 
+#print(tf.gradients(final_norm, x_norm))
+#exit()
 
 # Adversarial examples
 h_fc1_adv = tf.nn.relu(tf.matmul(x_adv, W_fc1) + b_fc1)
@@ -63,6 +65,9 @@ loss = -alpha * cross_norm - (1 - alpha) * cross_adv
 sm_norm = tf.nn.softmax(final_norm)
 
 # Discriminator
+y_norm = tf.placeholder(tf.int32, [None, 2])
+y_adv = tf.placeholder(tf.int32, [None, 2])
+
 W_d1 = weight_variable([LAYER_2, LAYER_3])
 W_d2 = weight_variable([LAYER_3, 2])
 b_d1 = bias_variable([LAYER_3])
@@ -74,8 +79,12 @@ discr_norm1 = tf.nn.relu(tf.matmul(drop_reg_discr, W_d1) + b_d1)
 discr_adv1 = tf.nn.relu(tf.matmul(drop_adv_discr, W_d1) + b_d1)
 final_discr_norm = tf.matmul(discr_norm1, W_d2) + b_d2
 final_discr_adv = tf.matmul(discr_adv1, W_d2) + b_d2
-cross_discr_norm = tf.nn.softmax_cross_entropy_with_logits(labels=np.asarray([1,0]), logits=final_discr_norm)
-cross_discr_adv = tf.nn.softmax_cross_entropy_with_logits(labels=np.asarray([0,1]), logits=final_discr_adv)
+#print np.stack([[np.array([1,0])] for _ in range(batch_size)], axis=0)
+#cross_discr_norm = tf.nn.softmax_cross_entropy_with_logits(labels=np.stack([[np.array([1,0])] for _ in range(batch_size)], axis = 0), logits=final_discr_norm)
+#cross_discr_adv = tf.nn.softmax_cross_entropy_with_logits(labels=np.stack([[np.array([0,1])] for _ in range(batch_size)], axis=0), logits=final_discr_adv)
+#print final_discr_norm
+cross_discr_norm = tf.nn.softmax_cross_entropy_with_logits(labels=y_norm, logits=final_discr_norm)
+cross_discr_adv = tf.nn.softmax_cross_entropy_with_logits(labels=y_adv, logits=final_discr_adv)
 discr_loss = - (cross_discr_norm + cross_discr_adv)
 
 # define training step and accuracy
@@ -85,8 +94,16 @@ correct_prediction = tf.equal(tf.argmax(final_norm, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 train_step_discr = tf.train.AdamOptimizer(learning_rate).minimize(discr_loss)
-correct_norm_discr = tf.equal(0, tf.argmax(cross_discr_norm,1, output_type = tf.int32))
-correct_adv_discr = tf.equal(1, tf.argmax(cross_discr_adv,1, output_type = tf.int32))
+#print tf.argmax(cross_discr_norm,1, output_type = tf.int32)
+#correct_norm_discr = tf.equal(tf.zeros([batch_size], tf.int32), tf.argmax(cross_discr_norm,1, output_type = tf.int32))
+#correct_adv_discr = tf.equal(tf.ones([batch_size], tf.int32), tf.argmax(cross_discr_adv,1, output_type = tf.int32))
+#print y_norm
+#print cross_discr_norm
+#print tf.argmax(y_norm, 1)
+#print tf.argmax(cross_discr_norm,1)
+correct_norm_discr = tf.equal(tf.argmax(y_norm, 1), tf.argmax(final_discr_norm,1))#, output_type = tf.int32))
+correct_adv_discr = tf.equal(tf.argmax(y_adv, 1), tf.argmax(final_discr_adv,1))#, output_type = tf.int32))
+
 norm_acc = tf.reduce_mean(tf.cast(correct_norm_discr, tf.float32))
 adv_acc = tf.reduce_mean(tf.cast(correct_adv_discr, tf.float32))
 comb_acc = (norm_acc + adv_acc) / 2
@@ -103,20 +120,28 @@ adv_examples = fast_gradient.fgm(x_norm, final_norm, sm_norm, eps=fgm_eps, epoch
 
 with tf.Session() as sess:
     sess.run(init)
+    
+    y_norm_labels = np.squeeze(np.stack([[np.array([1,0])] for _ in range(batch_size)], axis = 0))
+    y_adv_labels = np.squeeze(np.stack([[np.array([0,1])] for _ in range(batch_size)], axis = 0))
 
     for i in range(epochs):
+        print "EPOCH: " + str(i + 1)
         for j in range(mnist.train.num_examples/batch_size):
+            print j
+            print mnist.train.num_examples/batch_size
             input_images, correct_predictions = mnist.train.next_batch(batch_size)
             final_logits = sess.run(final_norm, feed_dict={x_norm: input_images})
             final_output = sess.run(sm_norm, feed_dict={x_norm: input_images})
             adv_images = sess.run(adv_examples, feed_dict={x_norm: input_images, final_norm: final_logits, sm_norm: final_output, fgm_eps: 0.01, fgm_epochs: 1}) 
             #GENERATE ADVERSARIAL IMAGES
             if j == 0:
-                discr_accuracy = sess.run(comb_acc, feed_dict={keep_prob_input:1.0, x_norm:input_images, x_adv:adv_images, y_:correct_predictions})
+                discr_accuracy = sess.run(comb_acc, feed_dict={keep_prob_input:1.0, x_norm:input_images, x_adv:adv_images, y_:correct_predictions, y_norm:y_norm_labels, y_adv:y_adv_labels})
                 train_accuracy = sess.run(accuracy, feed_dict={x_norm:input_images, x_adv:adv_images, y_:correct_predictions})
+                print "DISCRIMINATOR ACCURACY: " + str(discr_accuracy)
+                print "CLASSIFIER ACCURACY: " + str(train_accuracy)
                 path = saver.save(sess, 'mnist_save')
-            sess.run(train_step_discr, feed_dict={keep_prob_input:dropout, x:input_images, x_adv:adv_images, y_:correct_predictions}) 
-            sess.run(train_step, feed_dict={x:input_images, x_adv:adv_images, y_:correct_predictions})
+            sess.run(train_step_discr, feed_dict={keep_prob_input:dropout, x_norm:input_images, x_adv:adv_images, y_:correct_predictions, y_norm:y_norm_labels, y_adv:y_adv_labels})
+            sess.run(train_step, feed_dict={x_norm:input_images, x_adv:adv_images, y_:correct_predictions})
 
 
 

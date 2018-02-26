@@ -35,7 +35,7 @@ def fgm(x, logits, ybar, eps=0.01, epochs=1, sign=True, clip_min=0., clip_max=1.
         tf.equal(ydim, 1),
         lambda: tf.nn.relu(tf.sign(ybar - 0.5)),
         lambda: tf.one_hot(indices, ydim, on_value=1.0, off_value=0.0))
-
+    #print target
     if 1 == ydim:
         loss_fn = tf.nn.sigmoid_cross_entropy_with_logits
     else:
@@ -54,7 +54,9 @@ def fgm(x, logits, ybar, eps=0.01, epochs=1, sign=True, clip_min=0., clip_max=1.
 
     def _body(xadv, i):
         loss = loss_fn(labels=target, logits=logits)
-        dy_dx, = tf.gradients(loss, xadv)
+        
+        dy_dx, = tf.gradients(loss,x)#, xadv)
+        #print(dy_dx)
         xadv = tf.stop_gradient(xadv + eps*noise_fn(dy_dx))
         xadv = tf.clip_by_value(xadv, clip_min, clip_max)
         return xadv, i+1
