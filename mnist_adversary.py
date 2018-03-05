@@ -89,7 +89,6 @@ discr_loss = (cross_discr_norm + cross_discr_adv)
 
 classifier_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'c');
 discriminator_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'd');
-
 # define training step and accuracy
 #print loss
 train_step = tf.train.AdamOptimizer(learning_rate).minimize(cross_norm)#(loss)#, var_list=classifier_vars)
@@ -132,20 +131,23 @@ with tf.Session() as sess:
         print "EPOCH: " + str(i + 1)
         for j in range(mnist.train.num_examples/batch_size):
             print j
-            print mnist.train.num_examples/batch_size
             input_images, correct_predictions = mnist.train.next_batch(batch_size)
             final_logits = sess.run(final_norm, feed_dict={x_norm: input_images})
             final_output = sess.run(sm_norm, feed_dict={x_norm: input_images})
-            adv_images = sess.run(adv_examples, feed_dict={x_norm: input_images, final_norm: final_logits, sm_norm: final_output, fgm_eps: 0.01, fgm_epochs: 1}) 
+            adv_images = sess.run(adv_examples, feed_dict={x_norm: input_images, final_norm: final_logits, sm_norm: final_output, fgm_eps: 0.25, fgm_epochs: 1}) 
             #GENERATE ADVERSARIAL IMAGES
             if j == 0:
                 discr_accuracy = sess.run(comb_acc, feed_dict={keep_prob_input:1.0, x_norm:input_images, x_adv:adv_images, y_:correct_predictions, y_norm:y_norm_labels, y_adv:y_adv_labels})
                 train_accuracy = sess.run(accuracy, feed_dict={x_norm:input_images, y_:correct_predictions})#x_adv:adv_images, y_:correct_predictions})
                 print "DISCRIMINATOR ACCURACY: " + str(discr_accuracy)
                 print "CLASSIFIER ACCURACY: " + str(train_accuracy)
+#                print sess.run(W_fc1)
+                print sess.run(W_fc4)
+#                print sess.run(b_fc1)
+#                print sess.run(b_fc4)
                 path = saver.save(sess, 'mnist_save')
+            
             sess.run(train_step_discr, feed_dict={keep_prob_input:dropout, x_norm:input_images, x_adv:adv_images, y_:correct_predictions, y_norm:y_norm_labels, y_adv:y_adv_labels})
-            sess.run(train_step, feed_dict={x_norm:input_images, y_:correct_predictions})#x_adv:adv_images, y_:correct_predictions})
-
-
+            if i == 0:
+                sess.run(train_step, feed_dict={x_norm:input_images, y_:correct_predictions})#x_adv:adv_images, y_:correct_predictions})
 
