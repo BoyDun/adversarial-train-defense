@@ -33,13 +33,13 @@ y_ = tf.placeholder(tf.float32, [None, OUTPUT])
 x_norm = tf.placeholder(tf.float32, [None, INPUT])
 x_adv = tf.placeholder(tf.float32, [None, INPUT])
 
-W_fc1 = weight_variable([INPUT, LAYER_1], 'cw1')
-W_fc2 = weight_variable([LAYER_1, LAYER_2], 'cw2')
+W_fc1 = weight_variable([INPUT, LAYER_1], 'cew1')
+W_fc2 = weight_variable([LAYER_1, LAYER_2], 'cew2')
 W_fc3 = weight_variable([LAYER_2, LAYER_3], 'cw3')
 W_fc4 = weight_variable([LAYER_3, OUTPUT], 'cw4')
 
-b_fc1 = bias_variable([LAYER_1], 'cb1')
-b_fc2 = bias_variable([LAYER_2], 'cb2')
+b_fc1 = bias_variable([LAYER_1], 'ceb1')
+b_fc2 = bias_variable([LAYER_2], 'ceb2')
 b_fc3 = bias_variable([LAYER_3], 'cb3')
 b_fc4 = bias_variable([OUTPUT], 'cb4')
 
@@ -59,8 +59,6 @@ h_fc3_adv = tf.nn.relu(tf.matmul(h_fc2_adv, W_fc3) + b_fc3)
 final_adv = tf.matmul(h_fc3_adv, W_fc4) + b_fc4
 cross_adv = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=final_adv))
 
-loss = alpha * cross_norm + (1 - alpha) * cross_adv
-
 # For generating adversarial examples
 sm_norm = tf.nn.softmax(final_norm)
 
@@ -79,32 +77,29 @@ discr_norm1 = tf.nn.relu(tf.matmul(drop_reg_discr, W_d1) + b_d1)
 discr_adv1 = tf.nn.relu(tf.matmul(drop_adv_discr, W_d1) + b_d1)
 final_discr_norm = tf.matmul(discr_norm1, W_d2) + b_d2
 final_discr_adv = tf.matmul(discr_adv1, W_d2) + b_d2
-#print np.stack([[np.array([1,0])] for _ in range(batch_size)], axis=0)
-#cross_discr_norm = tf.nn.softmax_cross_entropy_with_logits(labels=np.stack([[np.array([1,0])] for _ in range(batch_size)], axis = 0), logits=final_discr_norm)
-#cross_discr_adv = tf.nn.softmax_cross_entropy_with_logits(labels=np.stack([[np.array([0,1])] for _ in range(batch_size)], axis=0), logits=final_discr_adv)
-#print final_discr_norm
+
 cross_discr_norm = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_norm, logits=final_discr_norm))
 cross_discr_adv = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_adv, logits=final_discr_adv))
 discr_loss = (cross_discr_norm + cross_discr_adv)
 
+loss = alpha * cross_norm + (1 - alpha) * cross_adv - beta * cross_discr_adv
+#enc_loss = beta * cross_discr_adv
+
 classifier_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'c');
-discriminator_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'd');
+discriminator_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'd')
+encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'ce')
+#print encoder_vars
+
 # define training step and accuracy
-#print loss
 train_step = tf.train.AdamOptimizer(learning_rate).minimize(cross_norm)#(loss)#, var_list=classifier_vars)
 correct_prediction = tf.equal(tf.argmax(final_norm, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 train_step_discr = tf.train.AdamOptimizer(learning_rate).minimize(discr_loss, var_list=discriminator_vars)
-#print tf.argmax(cross_discr_norm,1, output_type = tf.int32)
-#correct_norm_discr = tf.equal(tf.zeros([batch_size], tf.int32), tf.argmax(cross_discr_norm,1, output_type = tf.int32))
-#correct_adv_discr = tf.equal(tf.ones([batch_size], tf.int32), tf.argmax(cross_discr_adv,1, output_type = tf.int32))
-#print y_norm
-#print cross_discr_norm
-#print tf.argmax(y_norm, 1)
-#print tf.argmax(cross_discr_norm,1)
 correct_norm_discr = tf.equal(tf.argmax(y_norm, 1), tf.argmax(final_discr_norm,1))#, output_type = tf.int32))
 correct_adv_discr = tf.equal(tf.argmax(y_adv, 1), tf.argmax(final_discr_adv,1))#, output_type = tf.int32))
+
+#train_step_enc = tf.train.AdamOptimizer(learning_rate).minimize(enc_loss, var_list=encoder_vars)
 
 norm_acc = tf.reduce_mean(tf.cast(correct_norm_discr, tf.float32))
 adv_acc = tf.reduce_mean(tf.cast(correct_adv_discr, tf.float32))
@@ -146,8 +141,6 @@ with tf.Session() as sess:
 #                print sess.run(b_fc1)
 #                print sess.run(b_fc4)
                 path = saver.save(sess, 'mnist_save')
-            
             sess.run(train_step_discr, feed_dict={keep_prob_input:dropout, x_norm:input_images, x_adv:adv_images, y_:correct_predictions, y_norm:y_norm_labels, y_adv:y_adv_labels})
-            if i == 0:
-                sess.run(train_step, feed_dict={x_norm:input_images, y_:correct_predictions})#x_adv:adv_images, y_:correct_predictions})
-
+            sess.run(train_step, feed_dict={keep_prob_input:dropout, x_norm:input_images, y_:correct_predictions, x_adv:adv_images, y_norm:y_norm_labels, y_adv:y_adv_labels})
+#            sess.run(train_step_enc, feed_dict={keep_prob_input:dropout, x_norm:input_images, x_adv:adv_images, y_:correct_predictions, y_norm:y_adv_labels, y_adv:y_adv_labels})
